@@ -4,6 +4,7 @@
     school-ai check                 — проверить, что всё работает
     school-ai init-db               — создать/обновить таблицы
     school-ai index [путь...]       — проиндексировать документы (по умолчанию всю папку data)
+    school-ai watch                 — следить за папкой и индексировать изменения (служба)
     school-ai docs                  — список проиндексированных документов
     school-ai parse <файл>          — показать, как система «видит» структуру файла (без БД)
     school-ai ask "вопрос"          — задать вопрос
@@ -66,36 +67,22 @@ def cmd_init_db(args) -> int:
 def cmd_index(args) -> int:
     from . import indexer
 
-    paths = [Path(p) for p in args.paths] or [settings.data_dir]
-    catalog = indexer.load_catalog()
-    files = list(indexer.iter_files(paths))
-    if not files:
-        print("Файлы для индексации не найдены.")
-        return 1
-
-    stats = {"indexed": 0, "skipped": 0, "empty": 0, "error": 0}
-    for n, file in enumerate(files, start=1):
-        print(f"[{n}/{len(files)}] {file}")
-        try:
-            status = indexer.index_file(file, catalog, force=args.force)
-        except Exception as exc:
-            status = "error"
-            print(f"  ✗ ошибка: {exc}")
-        if status == "skipped":
-            print("  без изменений")
-        stats[status] += 1
-
-    # Удаляем из индекса то, чего больше нет на диске (только при полной индексации)
-    if not args.paths and not args.no_prune:
-        existing = {indexer.describe(f, catalog).rel_path for f in indexer.iter_files([settings.data_dir])}
-        stats["removed"] = indexer.prune(existing)
+    paths = [Path(p) for p in args.paths] or None
+    # Пропавшие файлы удаляем из индекса только при полной индексации
+    stats = indexer.run_index(paths, force=args.force, prune_missing=not args.paths and not args.no_prune)
 
     print(
         f"\nГотово: проиндексировано {stats['indexed']}, без изменений {stats['skipped']}, "
-        f"пустых {stats['empty']}, ошибок {stats['error']}"
-        + (f", удалено {stats['removed']}" if "removed" in stats else "")
+        f"пустых {stats['empty']}, ошибок {stats['error']}, удалено {stats['removed']}"
     )
     return 1 if stats["error"] else 0
+
+
+def cmd_watch(args) -> int:
+    from .watcher import watch
+
+    watch(interval=args.interval)
+    return 0
 
 
 def cmd_docs(args) -> int:
@@ -242,6 +229,10 @@ def main() -> None:
     p.add_argument("--force", action="store_true", help="переиндексировать даже неизменённые файлы")
     p.add_argument("--no-prune", action="store_true", help="не удалять из индекса пропавшие файлы")
     p.set_defaults(func=cmd_index)
+
+    p = sub.add_parser("watch", help="следить за папкой данных и индексировать изменения")
+    p.add_argument("--interval", type=float, default=5.0, help="период проверки, секунд")
+    p.set_defaults(func=cmd_watch)
 
     sub.add_parser("docs", help="список документов в индексе").set_defaults(func=cmd_docs)
 

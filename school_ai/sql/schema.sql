@@ -98,3 +98,15 @@ CREATE TABLE IF NOT EXISTS rag_queries (
 
 -- кто спросил (email/имя пользователя из Open WebUI)
 ALTER TABLE rag_queries ADD COLUMN IF NOT EXISTS user_name TEXT;
+
+-- -------------------------------------------------------------------
+-- Статус индексации каждого файла (для страницы «Документы»)
+-- status: queued | indexing | indexed | empty | error
+-- -------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS index_status (
+    file_path  TEXT PRIMARY KEY,           -- путь относительно папки данных
+    status     TEXT NOT NULL,
+    message    TEXT,
+    warnings   JSONB NOT NULL DEFAULT '[]',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

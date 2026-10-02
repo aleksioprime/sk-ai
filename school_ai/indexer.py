@@ -18,6 +18,7 @@
 """
 
 import hashlib
+import json
 import re
 import time
 import tomllib
@@ -132,7 +133,7 @@ def embedding_text(title: str, heading_path: str, label: str | None, text: str) 
 
 
 def index_file(path: Path, catalog: dict, force: bool = False, log=print) -> str:
-    """Возвращает статус: skipped | indexed."""
+    """Возвращает статус: skipped | indexed | empty. Предупреждения — в index_status."""
 
     meta = describe(path, catalog)
     checksum = file_hash(path)
@@ -156,7 +157,9 @@ def index_file(path: Path, catalog: dict, force: bool = False, log=print) -> str
         log(f"  ⚠ {warning}")
     if not chunks:
         log("  ⚠ В файле не найден текст — пропускаю.")
+        set_status(meta.rel_path, "empty", "В файле не найден текст (скан без OCR?)", parsed.warnings)
         return "empty"
+    set_status(meta.rel_path, "indexing")
 
     # Сначала считаем все embeddings (долго), потом одной транзакцией пишем в БД
     texts = [
@@ -217,6 +220,11 @@ def index_file(path: Path, catalog: dict, force: bool = False, log=print) -> str
             )
 
     numbered = sum(1 for s in sections if s.label)
+    set_status(
+        meta.rel_path, "indexed",
+        f"«{title}»: фрагментов {len(chunks)}, пунктов с номером {numbered}",
+        parsed.warnings,
+    )
     log(
         f"  «{title}»: разделов {len(sections)} (с номером {numbered}), "
         f"фрагментов {len(chunks)}, {time.monotonic() - started:.0f} с"
@@ -234,7 +242,90 @@ def prune(existing_files: set[str], log=print) -> int:
         ).fetchall():
             if rel_path not in existing_files:
                 conn.execute("DELETE FROM documents WHERE id = %s", (doc_id,))
+                conn.execute("DELETE FROM index_status WHERE file_path = %s", (rel_path,))
                 log(f"Удалён из индекса (файла больше нет): {rel_path} «{title}»")
                 removed += 1
+        # статусы файлов, которых больше нет (например, не проиндексировались)
+        for (rel_path,) in conn.execute("SELECT file_path FROM index_status").fetchall():
+            if rel_path not in existing_files:
+                conn.execute("DELETE FROM index_status WHERE file_path = %s", (rel_path,))
         conn.commit()
     return removed
+
+
+# ---------------------------------------------------------------------------
+# Статусы и запуск индексации
+# ---------------------------------------------------------------------------
+
+# Номер блокировки PostgreSQL: индексирует только один процесс одновременно
+# (служба school-ai watch или ручной school-ai index)
+INDEX_LOCK_ID = 7_340_001
+
+
+def set_status(rel_path: str, status: str, message: str | None = None, warnings: list | None = None) -> None:
+    with db.connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO index_status (file_path, status, message, warnings, updated_at)
+            VALUES (%s, %s, %s, %s, NOW())
+            ON CONFLICT (file_path) DO UPDATE
+               SET status = EXCLUDED.status, message = EXCLUDED.message,
+                   warnings = EXCLUDED.warnings, updated_at = NOW()
+            """,
+            (rel_path, status, message, json.dumps(warnings or [], ensure_ascii=False)),
+        )
+        conn.commit()
+
+
+def run_index(paths: list[Path] | None = None, force: bool = False, prune_missing: bool = True, log=print) -> dict:
+    """
+    Индексирует файлы (по умолчанию — всю папку данных) под общей блокировкой.
+    Возвращает счётчики: indexed, skipped, empty, error, removed.
+    """
+
+    stats = {"indexed": 0, "skipped": 0, "empty": 0, "error": 0, "removed": 0}
+    with db.connect() as lock_conn:
+        lock_conn.execute("SELECT pg_advisory_lock(%s)", (INDEX_LOCK_ID,))
+        try:
+            catalog = load_catalog()
+            files = list(iter_files(paths or [settings.data_dir]))
+
+            for n, file in enumerate(files, start=1):
+                log(f"[{n}/{len(files)}] {file}")
+                try:
+                    rel_path = describe(file, catalog).rel_path
+                except ValueError as exc:
+                    log(f"  ✗ {exc}")
+                    stats["error"] += 1
+                    continue
+                try:
+                    status = index_file(file, catalog, force=force, log=log)
+                except Exception as exc:
+                    status = "error"
+                    log(f"  ✗ ошибка: {exc}")
+                    set_status(rel_path, "error", str(exc)[:500])
+                if status == "skipped":
+                    log("  без изменений")
+                    _ensure_status(rel_path)
+                stats[status] += 1
+
+            if prune_missing:
+                existing = {describe(f, catalog).rel_path for f in iter_files([settings.data_dir])}
+                stats["removed"] = prune(existing, log=log)
+        finally:
+            lock_conn.execute("SELECT pg_advisory_unlock(%s)", (INDEX_LOCK_ID,))
+    return stats
+
+
+def _ensure_status(rel_path: str) -> None:
+    """Файлы, проиндексированные до появления таблицы статусов."""
+    with db.connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO index_status (file_path, status, message)
+            SELECT %s, 'indexed', 'Проиндексирован'
+            WHERE NOT EXISTS (SELECT 1 FROM index_status WHERE file_path = %s)
+            """,
+            (rel_path, rel_path),
+        )
+        conn.commit()

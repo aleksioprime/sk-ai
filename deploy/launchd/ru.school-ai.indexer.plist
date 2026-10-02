@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Служба автоматической индексации: следит за /opt/school-ai/data и индексирует изменения -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ru.school-ai.indexer</string>
+
+    <key>UserName</key>
+    <string>service</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/school-ai/.venv/bin/school-ai</string>
+        <string>watch</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SCHOOL_AI_ENV</key>
+        <string>/opt/school-ai/config/.env</string>
+        <key>HOME</key>
+        <string>/Users/service</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/opt/school-ai</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <!-- если упал — перезапуск не чаще раза в 10 секунд -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/opt/school-ai/logs/indexer.log</string>
+    <key>StandardErrorPath</key>
+    <string>/opt/school-ai/logs/indexer-error.log</string>
+</dict>
+</plist>
