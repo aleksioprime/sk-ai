@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Ollama: системный сервис, работает от пользователя service, слушает только localhost -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ru.school-ai.ollama</string>
+
+    <key>UserName</key>
+    <string>service</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/ollama</string>
+        <string>serve</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>OLLAMA_MODELS</key>
+        <string>/opt/school-ai/models/ollama</string>
+        <key>OLLAMA_HOST</key>
+        <string>127.0.0.1:11434</string>
+        <!-- держать модели в памяти сутки: первый ответ не ждёт загрузки -->
+        <key>OLLAMA_KEEP_ALIVE</key>
+        <string>24h</string>
+        <key>HOME</key>
+        <string>/Users/service</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/opt/school-ai/logs/ollama.log</string>
+    <key>StandardErrorPath</key>
+    <string>/opt/school-ai/logs/ollama-error.log</string>
+</dict>
+</plist>

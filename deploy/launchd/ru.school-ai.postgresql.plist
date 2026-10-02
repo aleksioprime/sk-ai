@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  PostgreSQL: системный сервис (стартует без входа в систему).
+  Работает от владельца data directory — администратора, установившего Homebrew
+  (__ADMIN_USER__ подставляет deploy/install.sh).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ru.school-ai.postgresql</string>
+
+    <key>UserName</key>
+    <string>__ADMIN_USER__</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/opt/postgresql@17/bin/postgres</string>
+        <string>-D</string>
+        <string>/opt/homebrew/var/postgresql@17</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LC_ALL</key>
+        <string>en_US.UTF-8</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/opt/school-ai/logs/postgresql.log</string>
+    <key>StandardErrorPath</key>
+    <string>/opt/school-ai/logs/postgresql-error.log</string>
+</dict>
+</plist>

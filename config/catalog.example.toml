@@ -1,0 +1,16 @@
+# Каталог документов (необязательный).
+#
+# Положите файл как local/data/catalog.toml — он уедет на сервер вместе
+# с документами. Ключ — путь к файлу относительно папки data.
+# Всё, что не указано, система определит сама:
+#   title      — из свойств файла или первых строк документа, иначе имя файла;
+#   type       — подпапка (documents/regulations/x.docx → "regulations");
+#   collection — первая папка (documents или reports).
+
+["documents/regulations/polozhenie.docx"]
+title = "Положение о закупках товаров, работ, услуг"
+type = "regulation"
+revision = "приказ от 16.01.2025 № 7-Пр"
+
+# ["documents/school/pravila-vnutrennego-rasporyadka.pdf"]
+# title = "Правила внутреннего распорядка обучающихся"

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Open WebUI: интерфейс чата для пользователей (настройки — /opt/school-ai/config/open-webui.env) -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ru.school-ai.open-webui</string>
+
+    <key>UserName</key>
+    <string>service</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/opt/school-ai/app/deploy/run-open-webui.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/service</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/opt/school-ai/logs/open-webui.log</string>
+    <key>StandardErrorPath</key>
+    <string>/opt/school-ai/logs/open-webui-error.log</string>
+</dict>
+</plist>

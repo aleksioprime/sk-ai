@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Веб-интерфейс и API School AI (адрес и порт — WEB_HOST/WEB_PORT в .env) -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ru.school-ai.web</string>
+
+    <key>UserName</key>
+    <string>service</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/school-ai/.venv/bin/school-ai</string>
+        <string>serve</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SCHOOL_AI_ENV</key>
+        <string>/opt/school-ai/config/.env</string>
+        <key>HOME</key>
+        <string>/Users/service</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/opt/school-ai</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <!-- если упал — перезапуск не чаще раза в 10 секунд -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/opt/school-ai/logs/web.log</string>
+    <key>StandardErrorPath</key>
+    <string>/opt/school-ai/logs/web-error.log</string>
+</dict>
+</plist>
