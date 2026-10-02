@@ -31,7 +31,7 @@
 Откройте страницу «Документы»:
 
 * через туннель: `deploy/tunnel.sh` → `http://localhost:8000`;
-* из сети школы (после `deploy/network.sh open`): `http://school-ai.local:8000`.
+* из сети школы (после `deploy/network.sh open`): `http://school-ai.local/documents/`.
 
 Вход — той же учётной записью, что и в Open WebUI: если вы уже вошли в чат
 на этом адресе, страница откроется сразу.

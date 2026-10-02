@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Caddy: единый вход School AI в сети школы на порту 80
+  (http://school-ai.local → чат, /documents → «Документы»).
+  Работает от пользователя service. Устанавливается командой deploy/network.sh open.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ru.school-ai.caddy</string>
+
+    <key>UserName</key>
+    <string>service</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/caddy</string>
+        <string>run</string>
+        <string>--config</string>
+        <string>/opt/school-ai/app/deploy/Caddyfile</string>
+        <string>--adapter</string>
+        <string>caddyfile</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/service</string>
+        <key>XDG_DATA_HOME</key>
+        <string>/opt/school-ai/caddy</string>
+        <key>XDG_CONFIG_HOME</key>
+        <string>/opt/school-ai/caddy</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/opt/school-ai/logs/caddy-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/opt/school-ai/logs/caddy-error.log</string>
+</dict>
+</plist>

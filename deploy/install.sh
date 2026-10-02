@@ -73,7 +73,7 @@ step "1. Homebrew и пакеты"
 # ---------------------------------------------------------------------------
 [[ -x "$BREW" ]] || die "Homebrew не установлен. Установите его (см. docs/01-installation.md) и запустите скрипт снова."
 
-for pkg in python@3.13 python@3.12 postgresql@17 pgvector ollama; do
+for pkg in python@3.13 python@3.12 postgresql@17 pgvector ollama caddy; do
     if as_admin "$BREW" list --versions "$pkg" >/dev/null 2>&1; then
         ok "$pkg уже установлен"
     else
@@ -345,6 +345,23 @@ if curl -sf "http://127.0.0.1:$owui_port/health" >/dev/null 2>&1; then
     ok "Open WebUI отвечает на порту $owui_port (HOST=$owui_host)"
 else
     warn "Open WebUI не ответил, см. $ROOT/logs/open-webui-error.log"
+fi
+
+# ---------------------------------------------------------------------------
+step "Доступ из сети школы (Caddy, порт 80)"
+# ---------------------------------------------------------------------------
+mkdir -p "$ROOT/caddy"
+chown -R "$SERVICE_USER":staff "$ROOT/caddy"
+for log in caddy caddy-stdout caddy-error; do
+    touch "$ROOT/logs/$log.log"
+    chown "$SERVICE_USER":staff "$ROOT/logs/$log.log"
+done
+if [[ -f "$ROOT/config/network.open" ]]; then
+    install_daemon ru.school-ai.caddy restart
+    ok "открыт: http://$(scutil --get LocalHostName).local (чат) и /documents/"
+else
+    launchctl bootout system/ru.school-ai.caddy >/dev/null 2>&1 || true
+    ok "закрыт (доступ через deploy/tunnel.sh). Открыть: deploy/network.sh open"
 fi
 
 # ---------------------------------------------------------------------------

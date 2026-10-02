@@ -14,6 +14,9 @@
     /v1/...                      — OpenAI-совместимый API для Open WebUI (ключ API_KEY)
 
 Вход — через учётные записи Open WebUI (см. auth.py).
+
+В сети страница открывается через Caddy по адресу http://school-ai.local/documents/
+(Caddy убирает префикс /documents), поэтому в index.html все адреса относительные.
 """
 
 from importlib import resources
@@ -69,13 +72,6 @@ def index() -> str:
 @app.get("/api/me")
 def api_me(request: Request, user: User = Depends(current_user)) -> dict:
     return {"name": user.name, "email": user.email, "role": user.role, "is_admin": user.is_admin}
-
-
-@app.get("/api/login-info")
-def api_login_info(request: Request) -> dict:
-    """Куда отправить пользователя для входа: Open WebUI на том же адресе."""
-    host = request.url.hostname or "localhost"
-    return {"open_webui": f"{request.url.scheme}://{host}:{settings.open_webui_public_port}"}
 
 
 # ---------------------------------------------------------------------------

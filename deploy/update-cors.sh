@@ -1,7 +1,8 @@
 #!/bin/bash
 #
 # Записывает в настройки Open WebUI (CORS_ALLOW_ORIGIN) все адреса, по которым
-# к серверу могут прийти браузеры: localhost, имя school-ai.local и текущие IP.
+# к серверу могут прийти браузеры: localhost, имя school-ai.local и текущие IP —
+# через Caddy (без порта) и напрямую (порт 8080, через SSH-туннель).
 # Без этого чат Open WebUI не работает, если открыт по адресу не из списка.
 #
 # Запускается от root на сервере: install.sh и deploy/network.sh вызывают его сами
@@ -18,7 +19,8 @@ for iface in $(ifconfig -l); do
     [[ -n "$ip" ]] && hosts+=("$ip")
 done
 
-origins="$(printf "http://%s:$port;" "${hosts[@]}")"
+# через Caddy (порт 80, без номера порта) и напрямую (порт Open WebUI)
+origins="$(printf "http://%s;" "${hosts[@]}")$(printf "http://%s:$port;" "${hosts[@]}")"
 origins="${origins%;}"
 
 if grep -q '^CORS_ALLOW_ORIGIN=' "$OWUI_ENV"; then

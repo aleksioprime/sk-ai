@@ -23,19 +23,26 @@ case "${1:-status}" in
     on)
         ssh -t "${SSH_OPTS[@]}" "$SERVER" "sudo touch /opt/school-ai/config/firewall.on && $APPLY apply-confirm 90 && $APPLY status" || exit 1
         echo
-        echo "Проверка с этого компьютера:"
         sleep 3
         failed=0
-        for url in "http://$SERVER_HOST:$WEB_PORT/api/health" "http://$SERVER_HOST:$OWUI_PORT/health"; do
-            if curl -s -m 8 -o /dev/null "$url"; then echo "  доступно:   $url"; else echo "  НЕДОСТУПНО: $url"; failed=1; fi
-        done
-        health="$(curl -s -m 8 "http://$SERVER_HOST:$WEB_PORT/api/health" || true)"
-        echo "  состояние School AI: ${health:-нет ответа}"
-        if [[ $failed -eq 1 || "$health" != *'"ollama":true'*'"db":true'* ]]; then
+        # 1) на сервере: School AI отвечает и видит Ollama и базу
+        health="$(ssh "${SSH_OPTS[@]}" "$SERVER" "curl -s -m 8 http://127.0.0.1:$WEB_PORT/api/health" || true)"
+        echo "Проверка на сервере: ${health:-нет ответа}"
+        [[ "$health" == *'"ollama":true'*'"db":true'* ]] || failed=1
+        # 2) по сети через Caddy — если доступ из сети открыт (deploy/network.sh open)
+        if curl -s -m 5 -o /dev/null "http://$SERVER_HOST/health" 2>/dev/null || \
+           ssh "${SSH_OPTS[@]}" "$SERVER" "netstat -an -p tcp | grep -qE '\.80 .*LISTEN'"; then
+            echo "Проверка с этого компьютера по сети:"
+            for url in "http://$SERVER_HOST/health" "http://$SERVER_HOST/documents/api/health"; do
+                if curl -s -m 8 -o /dev/null "$url"; then echo "  доступно:   $url"; else echo "  НЕДОСТУПНО: $url"; failed=1; fi
+            done
+        else
+            echo "Доступ из сети закрыт (deploy/network.sh close) — проверка по сети пропущена."
+        fi
+        if [[ $failed -eq 1 ]]; then
             echo
             echo "✗ С фильтром система работает неправильно — подтверждение НЕ отправлено."
             echo "  Фильтр будет снят автоматически в течение 90 секунд (пароль не нужен)."
-            echo "  (если доступ из сети закрыт — deploy/network.sh close — проверка по сети невозможна)"
             exit 1
         fi
         ssh "${SSH_OPTS[@]}" "$SERVER" "touch /tmp/school-ai-firewall-confirmed"

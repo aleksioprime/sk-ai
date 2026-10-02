@@ -1,0 +1,41 @@
+# Caddy — единая точка входа School AI в сети школы (порт 80).
+#
+#   http://school-ai.local/             → Open WebUI (чат)          127.0.0.1:8080
+#   http://school-ai.local/documents/   → «Документы» (School AI)    127.0.0.1:8000
+#
+# Сами сервисы слушают только 127.0.0.1 — снаружи доступен только Caddy.
+# Включается/выключается: deploy/network.sh open | close.
+
+{
+	# управление Caddy — только с самого сервера
+	admin localhost:2019
+	# HTTPS пока не используется (только локальная сеть); сертификаты не запрашиваются
+	auto_https off
+	storage file_system /opt/school-ai/caddy
+	log {
+		output file /opt/school-ai/logs/caddy.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}
+
+:80 {
+	encode gzip
+
+	# API для Open WebUI (/v1) — только внутри сервера, в сеть не выдаём
+	handle /documents/v1/* {
+		respond 404
+	}
+
+	# Страница «Документы» (префикс /documents убирается перед передачей)
+	redir /documents /documents/
+	handle_path /documents/* {
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	# Всё остальное — Open WebUI (включая websocket для потоковых ответов)
+	handle {
+		reverse_proxy 127.0.0.1:8080
+	}
+}

@@ -167,10 +167,11 @@ function message(text, kind = "err") {
 
 // ---------------- вход ----------------
 async function init() {
-  const info = await api("/api/login-info").catch(() => ({open_webui: "#"}));
-  $("owui-link").href = info.open_webui; $("login-link").href = info.open_webui;
+  // Чат: через Caddy он на том же адресе («/»), напрямую (порт 8000) — на порту 8080
+  const chat = location.port === "8000" ? `${location.protocol}//${location.hostname}:8080/` : "/";
+  $("owui-link").href = chat; $("login-link").href = chat;
   try {
-    const me = await api("/api/me");
+    const me = await api("api/me");
     $("user").textContent = `${me.name || me.email} · ${me.is_admin ? "администратор" : "пользователь"}`;
     $("app").classList.remove("hidden");
     loadFiles();
@@ -203,7 +204,7 @@ const STATUS = {
 
 async function loadFiles() {
   try {
-    state.data = await api("/api/files");
+    state.data = await api("api/files");
   } catch (err) { message("Не удалось загрузить список: " + err.message); return; }
   state.canEdit = state.data.can_edit;
   document.querySelectorAll(".edit-only").forEach((el) => el.classList.toggle("hidden", !state.canEdit));
@@ -250,7 +251,7 @@ function render() {
     }
     html += `<tr><td class="name">📄 ${esc(f.name)}</td><td>${status}</td>
       <td class="col-size sub">${fmtSize(f.size)}</td><td class="col-date sub">${fmtDate(f.modified)}</td>
-      <td class="actions"><a class="btn small" href="/api/files/download?path=${encodeURIComponent(f.path)}">Скачать</a>
+      <td class="actions"><a class="btn small" href="api/files/download?path=${encodeURIComponent(f.path)}">Скачать</a>
       ${state.canEdit ? `<button class="btn small" data-rename="${esc(f.path)}">Переместить</button> <button class="btn small" data-del="${esc(f.path)}">Удалить</button>` : ""}</td></tr>`;
   }
   if (!childDirs.length && !childFiles.length) html += `<tr><td colspan="5" class="hint">Папка пуста${state.canEdit ? " — загрузите файлы кнопкой или перетащите их сюда" : ""}.</td></tr>`;
@@ -264,7 +265,7 @@ function render() {
 
 async function removePath(path) {
   if (!confirm(`Удалить «${path}»?\nДокумент пропадёт и из базы знаний.`)) return;
-  try { await post("/api/files/delete", {path}); message("Удалено: " + path, "ok"); }
+  try { await post("api/files/delete", {path}); message("Удалено: " + path, "ok"); }
   catch (err) { message(err.message); }
   loadFiles();
 }
@@ -272,7 +273,7 @@ async function removePath(path) {
 async function movePath(path) {
   const dst = prompt("Новый путь (можно изменить папку и имя):", path);
   if (!dst || dst === path) return;
-  try { await post("/api/files/move", {src: path, dst: dst.trim()}); message("Перемещено: " + dst, "ok"); }
+  try { await post("api/files/move", {src: path, dst: dst.trim()}); message("Перемещено: " + dst, "ok"); }
   catch (err) { message(err.message); }
   loadFiles();
 }
@@ -280,7 +281,7 @@ async function movePath(path) {
 $("btn-mkdir").onclick = async () => {
   const name = prompt(`Имя новой папки внутри «${state.cwd}»:`);
   if (!name) return;
-  try { const r = await post("/api/files/mkdir", {path: state.cwd + "/" + name.trim()}); state.cwd = r.path; }
+  try { const r = await post("api/files/mkdir", {path: state.cwd + "/" + name.trim()}); state.cwd = r.path; }
   catch (err) { message(err.message); }
   loadFiles();
 };
@@ -300,7 +301,7 @@ function upload(list, overwrite = false) {
   form.append("overwrite", overwrite ? "true" : "false");
   list.forEach((f) => form.append("uploads", f));
   const xhr = new XMLHttpRequest();
-  xhr.open("POST", "/api/files/upload");
+  xhr.open("POST", "api/files/upload");
   $("upload-progress").classList.remove("hidden");
   xhr.upload.onprogress = (e) => {
     if (!e.lengthComputable) return;
@@ -335,7 +336,7 @@ $("form").addEventListener("submit", async (e) => {
   $("submit").disabled = true;
   const started = Date.now();
   const timer = setInterval(() => $("status").textContent = `Ищу и формулирую ответ… ${Math.round((Date.now() - started) / 1000)} с`, 500);
-  try { renderAnswer(await post("/api/ask", {question, collection: $("collection").value})); }
+  try { renderAnswer(await post("api/ask", {question, collection: $("collection").value})); }
   catch (err) { $("result").innerHTML = `<div class="card msg err">${esc(err.message)}</div>`; }
   finally { clearInterval(timer); $("submit").disabled = false; $("status").textContent = "Ctrl+Enter — отправить"; }
 });
