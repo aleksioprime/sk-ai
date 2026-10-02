@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School AI — документы</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #667085;
+    --border: #e3e6ec; --accent: #2f5bd3; --accent-soft: #e8eefc; --warn: #9a5b00; --warn-bg: #fff6e5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --card: #1b2029; --text: #e6e9ef; --muted: #98a2b3;
+      --border: #2b3240; --accent: #7aa2ff; --accent-soft: #1f2a44; --warn: #f5c26b; --warn-bg: #332611;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  nav { display: flex; gap: 8px; margin-bottom: 16px; }
+  nav button { background: none; border: 1px solid var(--border); color: var(--text);
+               padding: 6px 14px; border-radius: 999px; cursor: pointer; font-size: 14px; }
+  nav button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  textarea { width: 100%; min-height: 80px; resize: vertical; border: 1px solid var(--border); border-radius: 8px;
+             padding: 10px 12px; font: inherit; background: var(--bg); color: var(--text); }
+  .row { display: flex; gap: 12px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  select { border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font: inherit;
+           background: var(--bg); color: var(--text); }
+  button.primary { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 18px;
+                   font: inherit; font-weight: 600; cursor: pointer; }
+  button.primary:disabled { opacity: .5; cursor: wait; }
+  .hint { color: var(--muted); font-size: 13px; }
+  .answer p { margin: 0 0 10px; }
+  .claims { margin: 0; padding-left: 22px; }
+  .claims li { margin-bottom: 10px; }
+  .cite { display: inline-block; margin-top: 2px; font-size: 13px; color: var(--accent); cursor: pointer;
+          border-bottom: 1px dashed currentColor; }
+  .auto { font-size: 12px; color: var(--warn); margin-left: 6px; }
+  .source-text { display: none; margin-top: 6px; padding: 8px 10px; border-left: 3px solid var(--accent);
+                 background: var(--accent-soft); font-size: 14px; white-space: pre-wrap; border-radius: 4px; }
+  .source-text.open { display: block; }
+  .warn { background: var(--warn-bg); color: var(--warn); padding: 8px 12px; border-radius: 8px; font-size: 14px; margin-top: 10px; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 12px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Вопросы по документам школы</h1>
+  <p class="sub">Ответы формируются локальной моделью только на основе загруженных документов. Номера пунктов и тексты источников берутся из базы, а не из ответа модели.</p>
+
+  <nav>
+    <button id="tab-ask" class="active">Вопрос</button>
+    <button id="tab-docs">Документы</button>
+  </nav>
+
+  <section id="view-ask">
+    <div class="card">
+      <form id="form">
+        <textarea id="question" placeholder="Например: По каким причинам заявку участника могут отклонить?" required></textarea>
+        <div class="row">
+          <select id="collection" title="Где искать">
+            <option value="documents">Нормативные документы</option>
+            <option value="reports">Примеры отчётов</option>
+            <option value="all">Везде</option>
+          </select>
+          <button class="primary" id="submit" type="submit">Спросить</button>
+          <span class="hint" id="status">Ctrl+Enter — отправить</span>
+        </div>
+      </form>
+    </div>
+    <div id="result"></div>
+  </section>
+
+  <section id="view-docs" class="hidden">
+    <div class="card"><table id="docs"><tr><td class="hint">Загрузка…</td></tr></table></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function showTab(name) {
+  $("view-ask").classList.toggle("hidden", name !== "ask");
+  $("view-docs").classList.toggle("hidden", name !== "docs");
+  $("tab-ask").classList.toggle("active", name === "ask");
+  $("tab-docs").classList.toggle("active", name === "docs");
+  if (name === "docs") loadDocs();
+}
+$("tab-ask").onclick = () => showTab("ask");
+$("tab-docs").onclick = () => showTab("docs");
+
+$("question").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("form").requestSubmit();
+});
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const question = $("question").value.trim();
+  if (!question) return;
+  $("submit").disabled = true;
+  const started = Date.now();
+  const timer = setInterval(() => {
+    $("status").textContent = `Ищу и формулирую ответ… ${Math.round((Date.now() - started) / 1000)} с`;
+  }, 500);
+  try {
+    const res = await fetch("/api/ask", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({question, collection: $("collection").value}),
+    });
+    if (!res.ok) throw new Error(`Ошибка сервера: ${res.status}`);
+    render(await res.json());
+  } catch (err) {
+    $("result").innerHTML = `<div class="card warn">${esc(err.message)}</div>`;
+  } finally {
+    clearInterval(timer);
+    $("submit").disabled = false;
+    $("status").textContent = "Ctrl+Enter — отправить";
+  }
+});
+
+function render(r) {
+  let html = `<div class="card answer">`;
+  if (!r.found) {
+    html += `<p>${esc(r.answer)}</p>`;
+  } else {
+    if (r.intro) html += `<p>${esc(r.intro)}</p>`;
+    html += `<ol class="claims">`;
+    r.claims.forEach((c, i) => {
+      html += `<li>${esc(c.text)}<br>
+        <span class="cite" data-i="${i}">${esc(c.source.citation)}</span>
+        ${c.auto_added ? '<span class="auto">добавлено проверкой полноты</span>' : ""}
+        <div class="source-text" id="src-${i}">${esc(c.source.heading_path ? c.source.heading_path + "\n\n" : "")}${esc(c.source.text)}</div>
+      </li>`;
+    });
+    html += `</ol>`;
+    if (r.note) html += `<p>${esc(r.note)}</p>`;
+  }
+  (r.warnings || []).forEach((w) => html += `<div class="warn">${esc(w)}</div>`);
+  const t = r.diagnostics.timings || {};
+  html += `<div class="meta">Время: ${t.total ?? "—"} с (поиск ${t.retrieval ?? "—"} с, модель ${t.llm ?? "—"} с) · фрагментов в контексте: ${r.diagnostics.context_fragments}</div>`;
+  html += `<details><summary>Что нашёл поиск</summary><ol>`;
+  r.diagnostics.search_results.forEach((s) => html += `<li class="hint">${esc(s.citation)} — ${esc(s.channels.join(", "))}</li>`);
+  html += `</ol></details></div>`;
+  $("result").innerHTML = html;
+  document.querySelectorAll(".cite").forEach((el) => el.onclick = () => $("src-" + el.dataset.i).classList.toggle("open"));
+}
+
+async function loadDocs() {
+  const res = await fetch("/api/documents");
+  const docs = await res.json();
+  if (!docs.length) { $("docs").innerHTML = `<tr><td class="hint">Документов пока нет.</td></tr>`; return; }
+  $("docs").innerHTML = `<tr><th>Документ</th><th>Коллекция</th><th>Фрагментов</th><th>Обновлён</th></tr>` +
+    docs.map((d) => `<tr><td>${esc(d.title)}<br><span class="hint">${esc(d.filename)}</span></td>
+      <td>${esc(d.collection)}${d.document_type ? "<br><span class='hint'>" + esc(d.document_type) + "</span>" : ""}</td>
+      <td>${d.chunks}</td><td class="hint">${esc((d.indexed_at || "").slice(0, 16).replace("T", " "))}</td></tr>`).join("");
+}
+</script>
+</body>
+</html>

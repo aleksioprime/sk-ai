@@ -1,0 +1,16 @@
+# Документы, резервные копии и прочие локальные данные — не в git
+# (синхронизируются на сервер через deploy/sync.sh)
+/local
+
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+*.pyc
+
+# Секреты
+.env
+dev.env
+
+# macOS
+.DS_Store
