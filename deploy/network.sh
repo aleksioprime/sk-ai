@@ -39,7 +39,7 @@ ssh -t "${SSH_OPTS[@]}" "$SERVER" "set -e
 
 if [[ "$host" == 0.0.0.0 ]]; then
     # фактические адреса сервера в сети
-    addrs="$(ssh "${SSH_OPTS[@]}" "$SERVER" 'echo "$(scutil --get LocalHostName).local"; for i in $(ifconfig -l); do ipconfig getifaddr $i 2>/dev/null; done' | sort -u)"
+    addrs="$(ssh "${SSH_OPTS[@]}" "$SERVER" 'echo "$(scutil --get LocalHostName).local"; for i in $(ifconfig -l); do ipconfig getifaddr $i 2>/dev/null; done; true' | sort -u)"
     echo "Готово. Адреса для сотрудников:"
     for a in $addrs; do
         echo "  чат: http://$a:$OWUI_PORT    документы: http://$a:$WEB_PORT"
