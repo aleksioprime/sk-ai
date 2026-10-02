@@ -20,7 +20,24 @@ APPLY="sudo bash /opt/school-ai/app/deploy/firewall-apply.sh"
 
 case "${1:-status}" in
     on)
-        ssh -t "${SSH_OPTS[@]}" "$SERVER" "sudo touch /opt/school-ai/config/firewall.on && $APPLY apply && $APPLY status" ;;
+        ssh -t "${SSH_OPTS[@]}" "$SERVER" "sudo touch /opt/school-ai/config/firewall.on && $APPLY apply && $APPLY status"
+        echo
+        echo "Проверка с этого компьютера:"
+        sleep 2
+        failed=0
+        for url in "http://$SERVER_HOST:$WEB_PORT/api/health" "http://$SERVER_HOST:$OWUI_PORT/health"; do
+            if curl -s -m 8 -o /dev/null "$url"; then echo "  доступно:   $url"; else echo "  НЕДОСТУПНО: $url"; failed=1; fi
+        done
+        health="$(curl -s -m 8 "http://$SERVER_HOST:$WEB_PORT/api/health" || true)"
+        echo "  состояние School AI: ${health:-нет ответа}"
+        if [[ $failed -eq 1 || "$health" != *'"ollama":true'*'"db":true'* ]]; then
+            echo
+            echo "✗ С фильтром система работает неправильно. Выключите его: deploy/firewall.sh off"
+            echo "  (если доступ из сети закрыт — deploy/network.sh close — это нормально, проверьте через deploy/tunnel.sh)"
+            exit 1
+        fi
+        echo "✓ Сервисы работают, выход в интернет для них закрыт. Подробная проверка: deploy/firewall.sh test"
+        ;;
     off)
         ssh -t "${SSH_OPTS[@]}" "$SERVER" "sudo rm -f /opt/school-ai/config/firewall.on && $APPLY apply && $APPLY status" ;;
     status)

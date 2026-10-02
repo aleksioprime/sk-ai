@@ -14,8 +14,19 @@ FLAG=/opt/school-ai/config/firewall.on
 case "${1:-apply}" in
     apply)
         if [[ -f "$FLAG" ]]; then
-            /sbin/pfctl -q -a "$ANCHOR" -f "$RULES"
+            /sbin/pfctl -q -a "$ANCHOR" -f "$RULES" 2>/dev/null
             /sbin/pfctl -q -e 2>/dev/null || true   # pf мог быть уже включён
+            # Самопроверка: процессы service должны открывать соединения внутри
+            # компьютера (проверяем на SSH-службе — она работает всегда, даже при
+            # загрузке, когда Ollama ещё не запущена). Если нет — фильтр сломал бы
+            # систему: сразу снимаем и выключаем его.
+            sleep 1
+            if ! sudo -u service /usr/bin/nc -z -G 3 127.0.0.1 22 2>/dev/null; then
+                /sbin/pfctl -q -a "$ANCHOR" -F all 2>/dev/null || true
+                rm -f "$FLAG"
+                echo "ОШИБКА: с фильтром локальные сервисы недоступны — фильтр снят и выключен" >&2
+                exit 1
+            fi
             echo "сетевой фильтр включён"
         else
             /sbin/pfctl -q -a "$ANCHOR" -F all 2>/dev/null || true
