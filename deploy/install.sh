@@ -325,6 +325,8 @@ else
     done < <(grep -E '^[A-Z_]+=' "$SRC/config/open-webui.env.example" | grep -vE '^(WEBUI_SECRET_KEY|OPENAI_API_KEYS)=')
     ok "$OWUI_ENV уже существует — обновлены ключ API и новые параметры"
 fi
+# адреса сервера для CORS (меняются при переезде в другую сеть)
+ok "адреса для браузера: $(bash "$SRC/deploy/update-cors.sh" | tr ';' ' ')"
 chown "$SERVICE_USER":staff "$OWUI_ENV"
 chmod 600 "$OWUI_ENV"
 

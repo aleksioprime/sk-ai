@@ -20,7 +20,8 @@
 * доступ в интернет на время установки (скачать пакеты и модели).
 
 **Текущий сервер:** Mac Studio, Apple M4 Max (14 ядер CPU), 36 ГБ памяти,
-macOS 27, hostname `school-ai`, адрес `192.168.2.101`, работает без монитора.
+macOS 27, имя в сети `school-ai.local` (IP в тестовой сети — `192.168.2.101`),
+работает без монитора.
 Ollama 0.35, PostgreSQL 17.11, pgvector 0.8.7, Python 3.13.
 
 ---
@@ -84,17 +85,19 @@ ssh-keygen -t ed25519 -f ~/.ssh/school-ai -C "school-ai"
 ```
 
 ```bash
-ssh-copy-id -i ~/.ssh/school-ai.pub asemochkin@192.168.2.101
+ssh-copy-id -i ~/.ssh/school-ai.pub asemochkin@school-ai.local
 ```
 
 Проверка — должно войти без пароля:
 
 ```bash
-ssh -i ~/.ssh/school-ai asemochkin@192.168.2.101
+deploy/ssh.sh hostname
 ```
 
-Если адрес сервера, имя администратора или ключ другие — поправьте
-`deploy/config.sh`.
+Скрипты подключаются к серверу по имени `school-ai.local` — оно задаётся
+в Системных настройках → Основные → Общий доступ → «Локальное имя хоста».
+Если имя администратора или ключ другие — поправьте `deploy/config.sh`;
+если имя в сети не находится — см. `03-maintenance.md`, раздел 3.8.
 
 ---
 

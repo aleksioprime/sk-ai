@@ -33,13 +33,17 @@ ssh -t "${SSH_OPTS[@]}" "$SERVER" "set -e
     else
         echo 'WEB_HOST=$host' | sudo tee -a /opt/school-ai/config/.env >/dev/null
     fi
+    sudo bash /opt/school-ai/app/deploy/update-cors.sh >/dev/null
     sudo launchctl kickstart -k system/ru.school-ai.open-webui
     sudo launchctl kickstart -k system/ru.school-ai.web"
 
 if [[ "$host" == 0.0.0.0 ]]; then
+    # фактические адреса сервера в сети
+    addrs="$(ssh "${SSH_OPTS[@]}" "$SERVER" 'echo "$(scutil --get LocalHostName).local"; for i in $(ifconfig -l); do ipconfig getifaddr $i 2>/dev/null; done' | sort -u)"
     echo "Готово. Адреса для сотрудников:"
-    echo "  чат:       http://$SERVER_HOST:$OWUI_PORT"
-    echo "  документы: http://$SERVER_HOST:$WEB_PORT"
+    for a in $addrs; do
+        echo "  чат: http://$a:$OWUI_PORT    документы: http://$a:$WEB_PORT"
+    done
 else
     echo "Готово. Доступ только через deploy/tunnel.sh."
 fi
