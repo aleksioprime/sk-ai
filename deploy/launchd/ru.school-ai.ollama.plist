@@ -24,6 +24,9 @@
         <!-- держать модели в памяти сутки: первый ответ не ждёт загрузки -->
         <key>OLLAMA_KEEP_ALIVE</key>
         <string>24h</string>
+        <!-- никаких облачных моделей и веб-поиска ollama.com: всё только локально -->
+        <key>OLLAMA_NO_CLOUD</key>
+        <string>1</string>
         <key>HOME</key>
         <string>/Users/service</string>
     </dict>

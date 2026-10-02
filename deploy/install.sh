@@ -60,6 +60,14 @@ ADMIN_USER="${SUDO_USER:-}"
 [[ -n "$ADMIN_USER" && "$ADMIN_USER" != root ]] || die "Запускайте через sudo от администратора (не из-под root)"
 as_admin() { sudo -u "$ADMIN_USER" -H "$@"; }
 
+# Сетевой фильтр (deploy/firewall.sh) на время установки снимаем: нужно скачивать
+# пакеты и модели. В конце — даже при ошибке — он включается снова.
+if [[ -f "$ROOT/config/firewall.on" ]]; then
+    bash "$SRC/deploy/firewall-apply.sh" suspend
+    trap 'bash "$ROOT/app/deploy/firewall-apply.sh" apply >/dev/null 2>&1 || true' EXIT
+    warn "сетевой фильтр снят на время установки (включится в конце)"
+fi
+
 # ---------------------------------------------------------------------------
 step "1. Homebrew и пакеты"
 # ---------------------------------------------------------------------------
@@ -335,6 +343,17 @@ if curl -sf "http://127.0.0.1:$owui_port/health" >/dev/null 2>&1; then
     ok "Open WebUI отвечает на порту $owui_port (HOST=$owui_host)"
 else
     warn "Open WebUI не ответил, см. $ROOT/logs/open-webui-error.log"
+fi
+
+# ---------------------------------------------------------------------------
+step "Сетевой фильтр"
+# ---------------------------------------------------------------------------
+touch "$ROOT/logs/firewall.log"
+install_daemon ru.school-ai.firewall
+if [[ -f "$ROOT/config/firewall.on" ]]; then
+    ok "включён: сервисам закрыт выход в интернет (включится в конце установки)"
+else
+    warn "выключен. Рекомендуется: deploy/firewall.sh on (на вашем компьютере)"
 fi
 
 # ---------------------------------------------------------------------------

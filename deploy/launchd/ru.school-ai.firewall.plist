@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Сетевой фильтр School AI: при загрузке системы закрывает выход в интернет
+  процессам пользователя service (если включён: deploy/firewall.sh on).
+  Работает от root один раз при загрузке.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ru.school-ai.firewall</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/opt/school-ai/app/deploy/firewall-apply.sh</string>
+        <string>apply</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/opt/school-ai/logs/firewall.log</string>
+    <key>StandardErrorPath</key>
+    <string>/opt/school-ai/logs/firewall.log</string>
+</dict>
+</plist>
