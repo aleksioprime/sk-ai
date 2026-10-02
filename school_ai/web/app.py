@@ -1,51 +1,35 @@
 """
-Веб-интерфейс и HTTP API.
+Веб-приложение School AI (порт 8000).
 
-    GET  /                 — страница с вопросом
-    POST /api/ask          — {"question": "...", "collection": "documents"}
-    GET  /api/documents    — список документов
-    GET  /api/health       — проверка работоспособности
-    /v1/...                — OpenAI-совместимый API для Open WebUI (openai_api.py)
+    GET  /                       — страница: «Документы» (файловый менеджер) и «Проверка ответов»
+    GET  /api/me                 — текущий пользователь
+    GET  /api/files              — дерево папок и файлов со статусом индексации
+    POST /api/files/upload       — загрузить файлы (admin)
+    POST /api/files/mkdir        — создать папку (admin)
+    POST /api/files/move         — переместить/переименовать (admin)
+    POST /api/files/delete       — удалить файл или пустую папку (admin)
+    GET  /api/files/download     — скачать файл
+    POST /api/ask                — вопрос с диагностикой поиска
+    GET  /api/health             — проверка работоспособности (без входа)
+    /v1/...                      — OpenAI-совместимый API для Open WebUI (ключ API_KEY)
 
-Основной интерфейс для пользователей — Open WebUI. Эта страница — простой
-служебный интерфейс для администратора и проверки ответов.
-
-Если в .env задан WEB_PASSWORD, страница и /api требуют логин/пароль
-(WEB_USER / WEB_PASSWORD, HTTP Basic). /v1 защищён ключом API_KEY.
+Вход — через учётные записи Open WebUI (см. auth.py).
 """
 
-import secrets
 from importlib import resources
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
-from .. import db, ollama
+from .. import db, files, ollama
 from ..config import settings
 from ..rag import ask
+from .auth import User, admin_user, current_user
 from .openai_api import router as openai_router
 
-security = HTTPBasic(auto_error=False)
-
-
-def require_auth(credentials: HTTPBasicCredentials | None = Depends(security)) -> None:
-    if not settings.web_password:
-        return
-    ok = credentials is not None and (
-        secrets.compare_digest(credentials.username, settings.web_user)
-        and secrets.compare_digest(credentials.password, settings.web_password)
-    )
-    if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            headers={"WWW-Authenticate": "Basic"},
-        )
-
-
-app = FastAPI(title="School AI")
+app = FastAPI(title="School AI", docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(openai_router)
 
 
@@ -54,44 +38,124 @@ class AskRequest(BaseModel):
     collection: str | None = "documents"
 
 
-@app.get("/", response_class=HTMLResponse, dependencies=[Depends(require_auth)])
+class PathRequest(BaseModel):
+    path: str
+
+
+class MoveRequest(BaseModel):
+    src: str
+    dst: str
+
+
+def _file_errors(func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except files.FileError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
+    except OSError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Ошибка файловой системы: {exc.strerror or exc}")
+
+
+# ---------------------------------------------------------------------------
+# Страница
+# ---------------------------------------------------------------------------
+
+@app.get("/", response_class=HTMLResponse)
 def index() -> str:
+    # Страница сама проверит вход через /api/me и покажет ссылку на Open WebUI
     return resources.files("school_ai.web").joinpath("static/index.html").read_text()
 
 
-@app.post("/api/ask", dependencies=[Depends(require_auth)])
-async def api_ask(request: AskRequest) -> dict:
+@app.get("/api/me")
+def api_me(request: Request, user: User = Depends(current_user)) -> dict:
+    return {"name": user.name, "email": user.email, "role": user.role, "is_admin": user.is_admin}
+
+
+@app.get("/api/login-info")
+def api_login_info(request: Request) -> dict:
+    """Куда отправить пользователя для входа: Open WebUI на том же адресе."""
+    host = request.url.hostname or "localhost"
+    return {"open_webui": f"{request.url.scheme}://{host}:{settings.open_webui_public_port}"}
+
+
+# ---------------------------------------------------------------------------
+# Файлы
+# ---------------------------------------------------------------------------
+
+@app.get("/api/files")
+def api_files(user: User = Depends(current_user)) -> dict:
+    data = files.tree()
+    data["can_edit"] = user.is_admin
+    data["max_upload_mb"] = files.MAX_UPLOAD_MB
+    return data
+
+
+@app.post("/api/files/upload")
+async def api_upload(
+    dir: str = Form(...),
+    overwrite: bool = Form(False),
+    uploads: list[UploadFile] = File(...),
+    user: User = Depends(admin_user),
+) -> dict:
+    saved, errors = [], []
+    for upload in uploads:
+        try:
+            saved.append(
+                await run_in_threadpool(files.save_upload, dir, upload.filename, upload.file, overwrite)
+            )
+        except files.FileError as exc:
+            errors.append(f"{upload.filename}: {exc}")
+        finally:
+            await upload.close()
+    return {"saved": saved, "errors": errors}
+
+
+@app.post("/api/files/mkdir")
+def api_mkdir(body: PathRequest, user: User = Depends(admin_user)) -> dict:
+    return {"path": _file_errors(files.make_dir, body.path)}
+
+
+@app.post("/api/files/move")
+def api_move(body: MoveRequest, user: User = Depends(admin_user)) -> dict:
+    return {"path": _file_errors(files.move, body.src, body.dst)}
+
+
+@app.post("/api/files/delete")
+def api_delete(body: PathRequest, user: User = Depends(admin_user)) -> dict:
+    _file_errors(files.delete, body.path)
+    return {"ok": True}
+
+
+@app.get("/api/files/download")
+def api_download(path: str = Query(...), user: User = Depends(current_user)):
+    target = _file_errors(files.resolve, path)
+    if not target.is_file():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Это не файл")
+    return FileResponse(target, filename=target.name)
+
+
+# ---------------------------------------------------------------------------
+# Вопросы (служебная проверка — с диагностикой поиска)
+# ---------------------------------------------------------------------------
+
+@app.post("/api/ask")
+async def api_ask(request: AskRequest, user: User = Depends(current_user)) -> dict:
     collection = None if request.collection in (None, "", "all") else request.collection
-    # Модель отвечает десятки секунд — не блокируем остальной сервер
-    return await run_in_threadpool(ask, request.question.strip(), collection)
+    return await run_in_threadpool(ask, request.question.strip(), collection, True, user.email or user.name)
 
 
-@app.get("/api/documents", dependencies=[Depends(require_auth)])
-def api_documents() -> list[dict]:
-    with db.connect() as conn:
-        rows = conn.execute(
-            """
-            SELECT d.id, d.collection, d.document_type, d.title, d.filename, d.indexed_at,
-                   (SELECT COUNT(*) FROM document_chunks c WHERE c.document_id = d.id) AS chunks
-            FROM documents d ORDER BY d.collection, d.title
-            """
-        ).fetchall()
-    keys = ["id", "collection", "document_type", "title", "filename", "indexed_at", "chunks"]
-    return [dict(zip(keys, row)) for row in rows]
-
-
-@app.get("/api/health", dependencies=[Depends(require_auth)])
+@app.get("/api/health")
 def api_health() -> dict:
     result = {"ollama": False, "db": False}
     try:
-        result["models"] = ollama.list_models()
+        ollama.list_models()
         result["ollama"] = True
-    except Exception as exc:
-        result["ollama_error"] = str(exc)
+    except Exception:
+        pass
     try:
         with db.connect() as conn:
             conn.execute("SELECT 1")
         result["db"] = True
-    except Exception as exc:
-        result["db_error"] = str(exc)
+    except Exception:
+        pass
     return result

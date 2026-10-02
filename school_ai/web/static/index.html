@@ -6,166 +6,365 @@
 <title>School AI — документы</title>
 <style>
   :root {
-    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #667085;
-    --border: #e3e6ec; --accent: #2f5bd3; --accent-soft: #e8eefc; --warn: #9a5b00; --warn-bg: #fff6e5;
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #667085; --border: #e3e6ec;
+    --accent: #2f5bd3; --accent-soft: #e8eefc; --ok: #1f7a46; --ok-bg: #e6f4ec;
+    --warn: #9a5b00; --warn-bg: #fff6e5; --err: #b42318; --err-bg: #fdecea; --hover: #f1f3f7;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #12151b; --card: #1b2029; --text: #e6e9ef; --muted: #98a2b3;
-      --border: #2b3240; --accent: #7aa2ff; --accent-soft: #1f2a44; --warn: #f5c26b; --warn-bg: #332611;
+      --bg: #12151b; --card: #1b2029; --text: #e6e9ef; --muted: #98a2b3; --border: #2b3240;
+      --accent: #7aa2ff; --accent-soft: #1f2a44; --ok: #6fd39b; --ok-bg: #16301f;
+      --warn: #f5c26b; --warn-bg: #332611; --err: #ff8a80; --err-bg: #3a1714; --hover: #222937;
     }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
-         font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 20px 16px 64px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0; flex: 1; }
+  .user { color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); }
   nav { display: flex; gap: 8px; margin-bottom: 16px; }
-  nav button { background: none; border: 1px solid var(--border); color: var(--text);
-               padding: 6px 14px; border-radius: 999px; cursor: pointer; font-size: 14px; }
+  nav button, .btn { background: var(--card); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 14px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 14px; }
   nav button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .btn:hover { background: var(--hover); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.small { padding: 2px 8px; font-size: 13px; }
+  .btn:disabled { opacity: .5; cursor: wait; }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .hint { color: var(--muted); font-size: 13px; }
+  .hidden { display: none !important; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .crumbs { flex: 1; font-size: 15px; min-width: 200px; }
+  .crumbs span { cursor: pointer; color: var(--accent); }
+  .crumbs span.cur { color: var(--text); cursor: default; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  tr.dir td.name { cursor: pointer; font-weight: 500; }
+  tr:hover td { background: var(--hover); }
+  td.name { word-break: break-word; }
+  td.actions { white-space: nowrap; text-align: right; }
+  .badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+  .b-ok { background: var(--ok-bg); color: var(--ok); }
+  .b-wait { background: var(--accent-soft); color: var(--accent); }
+  .b-warn { background: var(--warn-bg); color: var(--warn); }
+  .b-err { background: var(--err-bg); color: var(--err); }
+  .sub { font-size: 12px; color: var(--muted); }
+  .warnline { font-size: 12px; color: var(--warn); }
+  .drop { border: 2px dashed var(--border); border-radius: 12px; padding: 18px; text-align: center; color: var(--muted); margin-bottom: 12px; }
+  .drop.over { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; margin-bottom: 12px; white-space: pre-line; }
+  .msg.err { background: var(--err-bg); color: var(--err); }
+  .msg.ok { background: var(--ok-bg); color: var(--ok); }
+  progress { width: 100%; }
   textarea { width: 100%; min-height: 80px; resize: vertical; border: 1px solid var(--border); border-radius: 8px;
              padding: 10px 12px; font: inherit; background: var(--bg); color: var(--text); }
+  select { border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font: inherit; background: var(--bg); color: var(--text); }
   .row { display: flex; gap: 12px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
-  select { border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font: inherit;
-           background: var(--bg); color: var(--text); }
-  button.primary { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 18px;
-                   font: inherit; font-weight: 600; cursor: pointer; }
-  button.primary:disabled { opacity: .5; cursor: wait; }
-  .hint { color: var(--muted); font-size: 13px; }
-  .answer p { margin: 0 0 10px; }
-  .claims { margin: 0; padding-left: 22px; }
-  .claims li { margin-bottom: 10px; }
-  .cite { display: inline-block; margin-top: 2px; font-size: 13px; color: var(--accent); cursor: pointer;
-          border-bottom: 1px dashed currentColor; }
-  .auto { font-size: 12px; color: var(--warn); margin-left: 6px; }
+  .claims { padding-left: 22px; } .claims li { margin-bottom: 10px; }
+  .cite { font-size: 13px; color: var(--accent); cursor: pointer; border-bottom: 1px dashed currentColor; }
   .source-text { display: none; margin-top: 6px; padding: 8px 10px; border-left: 3px solid var(--accent);
                  background: var(--accent-soft); font-size: 14px; white-space: pre-wrap; border-radius: 4px; }
   .source-text.open { display: block; }
-  .warn { background: var(--warn-bg); color: var(--warn); padding: 8px 12px; border-radius: 8px; font-size: 14px; margin-top: 10px; }
-  .meta { color: var(--muted); font-size: 13px; margin-top: 12px; }
-  details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 8px; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  td, th { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { color: var(--muted); font-weight: 500; }
-  .hidden { display: none; }
+  @media (max-width: 640px) { .col-size, .col-date { display: none; } }
 </style>
 </head>
 <body>
 <main>
-  <h1>Вопросы по документам школы</h1>
-  <p class="sub">Ответы формируются локальной моделью только на основе загруженных документов. Номера пунктов и тексты источников берутся из базы, а не из ответа модели.</p>
+  <header>
+    <h1>School AI</h1>
+    <span class="user" id="user"></span>
+    <a class="btn small" id="owui-link" href="#">Чат (Open WebUI)</a>
+  </header>
 
-  <nav>
-    <button id="tab-ask" class="active">Вопрос</button>
-    <button id="tab-docs">Документы</button>
-  </nav>
+  <section id="login" class="card hidden">
+    <p id="login-text">Чтобы открыть эту страницу, войдите в Open WebUI на этом же адресе, затем обновите страницу.</p>
+    <a class="btn primary" id="login-link" href="#">Войти через Open WebUI</a>
+    <button class="btn" onclick="location.reload()">Обновить</button>
+  </section>
 
-  <section id="view-ask">
-    <div class="card">
-      <form id="form">
-        <textarea id="question" placeholder="Например: По каким причинам заявку участника могут отклонить?" required></textarea>
-        <div class="row">
-          <select id="collection" title="Где искать">
-            <option value="documents">Нормативные документы</option>
-            <option value="reports">Примеры отчётов</option>
-            <option value="all">Везде</option>
-          </select>
-          <button class="primary" id="submit" type="submit">Спросить</button>
-          <span class="hint" id="status">Ctrl+Enter — отправить</span>
+  <div id="app" class="hidden">
+    <nav>
+      <button id="tab-files" class="active">Документы</button>
+      <button id="tab-ask">Проверка ответов</button>
+    </nav>
+
+    <!-- ================= Документы ================= -->
+    <section id="view-files">
+      <div class="card">
+        <div class="toolbar">
+          <div class="crumbs" id="crumbs"></div>
+          <span class="edit-only"><button class="btn" id="btn-mkdir">Новая папка</button></span>
+          <span class="edit-only"><button class="btn primary" id="btn-upload">Загрузить файлы</button></span>
+          <input type="file" id="file-input" multiple class="hidden">
         </div>
-      </form>
-    </div>
-    <div id="result"></div>
-  </section>
+        <div id="messages"></div>
+        <div class="drop edit-only" id="drop">Перетащите файлы сюда, чтобы загрузить в эту папку</div>
+        <div id="upload-progress" class="hidden"><progress id="progress" max="100" value="0"></progress><div class="hint" id="progress-text"></div></div>
+        <table>
+          <thead><tr><th>Имя</th><th>Состояние</th><th class="col-size">Размер</th><th class="col-date">Изменён</th><th></th></tr></thead>
+          <tbody id="list"></tbody>
+        </table>
+        <p class="hint" id="files-hint"></p>
+      </div>
+      <p class="hint">
+        <b>documents/</b> — нормативная база (по ней отвечает «📘 Документы школы»), <b>reports/</b> — примеры отчётов.
+        После загрузки файл автоматически индексируется за несколько секунд — минуту.
+        Лучший формат — DOCX: в нём точно распознаются номера пунктов. Сканы PDF без текстового слоя прочитать нельзя.
+      </p>
+    </section>
 
-  <section id="view-docs" class="hidden">
-    <div class="card"><table id="docs"><tr><td class="hint">Загрузка…</td></tr></table></div>
-  </section>
+    <!-- ================= Проверка ответов ================= -->
+    <section id="view-ask" class="hidden">
+      <div class="card">
+        <p class="hint" style="margin-top:0">Служебная проверка: тот же ответ, что в Open WebUI, плюс диагностика поиска.</p>
+        <form id="form">
+          <textarea id="question" placeholder="Например: По каким причинам заявку участника могут отклонить?" required></textarea>
+          <div class="row">
+            <select id="collection">
+              <option value="documents">Нормативные документы</option>
+              <option value="reports">Примеры отчётов</option>
+              <option value="all">Везде</option>
+            </select>
+            <button class="btn primary" id="submit" type="submit">Спросить</button>
+            <span class="hint" id="status">Ctrl+Enter — отправить</span>
+          </div>
+        </form>
+      </div>
+      <div id="result"></div>
+    </section>
+  </div>
 </main>
 
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtSize = (b) => b < 1024 ? b + " Б" : b < 1048576 ? (b / 1024).toFixed(0) + " КБ" : (b / 1048576).toFixed(1) + " МБ";
+const fmtDate = (s) => s ? new Date(s).toLocaleString("ru-RU", {dateStyle: "short", timeStyle: "short"}) : "";
 
-function showTab(name) {
-  $("view-ask").classList.toggle("hidden", name !== "ask");
-  $("view-docs").classList.toggle("hidden", name !== "docs");
-  $("tab-ask").classList.toggle("active", name === "ask");
-  $("tab-docs").classList.toggle("active", name === "docs");
-  if (name === "docs") loadDocs();
+let state = {cwd: "documents", data: null, canEdit: false, timer: null};
+
+async function api(url, opts = {}) {
+  const res = await fetch(url, {credentials: "same-origin", ...opts});
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail || detail; } catch (_) {}
+    const err = new Error(detail); err.status = res.status; throw err;
+  }
+  return res.json();
 }
+const post = (url, body) => api(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+
+function message(text, kind = "err") {
+  const el = document.createElement("div");
+  el.className = "msg " + kind; el.textContent = text;
+  $("messages").appendChild(el);
+  setTimeout(() => el.remove(), kind === "ok" ? 5000 : 15000);
+}
+
+// ---------------- вход ----------------
+async function init() {
+  const info = await api("/api/login-info").catch(() => ({open_webui: "#"}));
+  $("owui-link").href = info.open_webui; $("login-link").href = info.open_webui;
+  try {
+    const me = await api("/api/me");
+    $("user").textContent = `${me.name || me.email} · ${me.is_admin ? "администратор" : "пользователь"}`;
+    $("app").classList.remove("hidden");
+    loadFiles();
+  } catch (err) {
+    $("login").classList.remove("hidden");
+    if (err.status === 403) $("login-text").textContent = err.message;
+    if (err.status === 503) $("login-text").textContent = err.message;
+  }
+}
+
+// ---------------- вкладки ----------------
+function showTab(name) {
+  $("view-files").classList.toggle("hidden", name !== "files");
+  $("view-ask").classList.toggle("hidden", name !== "ask");
+  $("tab-files").classList.toggle("active", name === "files");
+  $("tab-ask").classList.toggle("active", name === "ask");
+}
+$("tab-files").onclick = () => showTab("files");
 $("tab-ask").onclick = () => showTab("ask");
-$("tab-docs").onclick = () => showTab("docs");
 
-$("question").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("form").requestSubmit();
-});
+// ---------------- файлы ----------------
+const STATUS = {
+  indexed:  ["b-ok",   "✓ в базе"],
+  queued:   ["b-wait", "⏳ в очереди"],
+  indexing: ["b-wait", "⏳ индексируется"],
+  waiting:  ["b-wait", "⏳ ожидает"],
+  empty:    ["b-warn", "⚠ нет текста"],
+  error:    ["b-err",  "✗ ошибка"],
+};
 
+async function loadFiles() {
+  try {
+    state.data = await api("/api/files");
+  } catch (err) { message("Не удалось загрузить список: " + err.message); return; }
+  state.canEdit = state.data.can_edit;
+  document.querySelectorAll(".edit-only").forEach((el) => el.classList.toggle("hidden", !state.canEdit));
+  if (!state.data.dirs.includes(state.cwd)) state.cwd = "documents";
+  render();
+  clearTimeout(state.timer);
+  const busy = state.data.files.some((f) => ["queued", "indexing", "waiting"].includes(f.status));
+  state.timer = setTimeout(loadFiles, busy ? 3000 : 30000);
+}
+
+function render() {
+  const {dirs, files} = state.data;
+  const cwd = state.cwd;
+  const parts = cwd.split("/");
+  $("crumbs").innerHTML = parts.map((p, i) => {
+    const path = parts.slice(0, i + 1).join("/");
+    return i === parts.length - 1 ? `<span class="cur">${esc(p)}</span>` : `<span data-path="${esc(path)}">${esc(p)}</span>`;
+  }).join(" / ") + ` <span class="hint" style="cursor:pointer" data-switch="1">(${cwd.startsWith("reports") ? "перейти в documents" : "перейти в reports"})</span>`;
+  $("crumbs").querySelectorAll("span[data-path]").forEach((el) => el.onclick = () => { state.cwd = el.dataset.path; render(); });
+  $("crumbs").querySelector("[data-switch]").onclick = () => { state.cwd = cwd.startsWith("reports") ? "documents" : "reports"; render(); };
+
+  const childDirs = dirs.filter((d) => d.startsWith(cwd + "/") && !d.slice(cwd.length + 1).includes("/"));
+  const childFiles = files.filter((f) => f.path.slice(0, f.path.lastIndexOf("/")) === cwd);
+  const countIn = (d) => files.filter((f) => f.path.startsWith(d + "/")).length;
+
+  let html = "";
+  if (cwd.includes("/")) html += `<tr class="dir"><td class="name" data-open="${esc(cwd.slice(0, cwd.lastIndexOf("/")))}">⬆ ..</td><td></td><td class="col-size"></td><td class="col-date"></td><td></td></tr>`;
+  for (const d of childDirs) {
+    const name = d.slice(cwd.length + 1);
+    html += `<tr class="dir"><td class="name" data-open="${esc(d)}">📁 ${esc(name)}</td>
+      <td class="sub">${countIn(d)} файл(ов)</td><td class="col-size"></td><td class="col-date"></td>
+      <td class="actions">${state.canEdit ? `<button class="btn small" data-rename="${esc(d)}">Переименовать</button> <button class="btn small" data-del="${esc(d)}">Удалить</button>` : ""}</td></tr>`;
+  }
+  for (const f of childFiles) {
+    let status = "";
+    if (f.supported) {
+      const [cls, label] = STATUS[f.status] || ["b-wait", f.status];
+      status = `<span class="badge ${cls}" title="${esc(f.message || "")}">${label}</span>`;
+      if (f.status === "indexed" && f.chunks) status += `<div class="sub">${esc(f.title || "")} · фрагментов: ${f.chunks}</div>`;
+      else if (f.message && f.status !== "indexed") status += `<div class="sub">${esc(f.message)}</div>`;
+      for (const w of (f.warnings || [])) status += `<div class="warnline">⚠ ${esc(w)}</div>`;
+    } else {
+      status = `<span class="sub">не индексируется</span>`;
+    }
+    html += `<tr><td class="name">📄 ${esc(f.name)}</td><td>${status}</td>
+      <td class="col-size sub">${fmtSize(f.size)}</td><td class="col-date sub">${fmtDate(f.modified)}</td>
+      <td class="actions"><a class="btn small" href="/api/files/download?path=${encodeURIComponent(f.path)}">Скачать</a>
+      ${state.canEdit ? `<button class="btn small" data-rename="${esc(f.path)}">Переместить</button> <button class="btn small" data-del="${esc(f.path)}">Удалить</button>` : ""}</td></tr>`;
+  }
+  if (!childDirs.length && !childFiles.length) html += `<tr><td colspan="5" class="hint">Папка пуста${state.canEdit ? " — загрузите файлы кнопкой или перетащите их сюда" : ""}.</td></tr>`;
+  $("list").innerHTML = html;
+  $("files-hint").textContent = `Всего файлов: ${files.length}. Поддерживаемые форматы: ${state.data.extensions.join(", ")}. Максимальный размер файла: ${state.data.max_upload_mb} МБ.`;
+
+  $("list").querySelectorAll("[data-open]").forEach((el) => el.onclick = () => { state.cwd = el.dataset.open; render(); });
+  $("list").querySelectorAll("[data-del]").forEach((el) => el.onclick = () => removePath(el.dataset.del));
+  $("list").querySelectorAll("[data-rename]").forEach((el) => el.onclick = () => movePath(el.dataset.rename));
+}
+
+async function removePath(path) {
+  if (!confirm(`Удалить «${path}»?\nДокумент пропадёт и из базы знаний.`)) return;
+  try { await post("/api/files/delete", {path}); message("Удалено: " + path, "ok"); }
+  catch (err) { message(err.message); }
+  loadFiles();
+}
+
+async function movePath(path) {
+  const dst = prompt("Новый путь (можно изменить папку и имя):", path);
+  if (!dst || dst === path) return;
+  try { await post("/api/files/move", {src: path, dst: dst.trim()}); message("Перемещено: " + dst, "ok"); }
+  catch (err) { message(err.message); }
+  loadFiles();
+}
+
+$("btn-mkdir").onclick = async () => {
+  const name = prompt(`Имя новой папки внутри «${state.cwd}»:`);
+  if (!name) return;
+  try { const r = await post("/api/files/mkdir", {path: state.cwd + "/" + name.trim()}); state.cwd = r.path; }
+  catch (err) { message(err.message); }
+  loadFiles();
+};
+
+$("btn-upload").onclick = () => $("file-input").click();
+$("file-input").onchange = () => { upload([...$("file-input").files]); $("file-input").value = ""; };
+
+const drop = $("drop");
+["dragenter", "dragover"].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); if (state.canEdit) drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+document.addEventListener("drop", (e) => { if (state.canEdit && !$("view-files").classList.contains("hidden")) upload([...e.dataTransfer.files]); });
+
+function upload(list, overwrite = false) {
+  if (!list.length) return;
+  const form = new FormData();
+  form.append("dir", state.cwd);
+  form.append("overwrite", overwrite ? "true" : "false");
+  list.forEach((f) => form.append("uploads", f));
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/files/upload");
+  $("upload-progress").classList.remove("hidden");
+  xhr.upload.onprogress = (e) => {
+    if (!e.lengthComputable) return;
+    $("progress").value = Math.round(e.loaded / e.total * 100);
+    $("progress-text").textContent = `Загрузка ${list.length} файл(ов): ${$("progress").value}%`;
+  };
+  xhr.onload = () => {
+    $("upload-progress").classList.add("hidden");
+    let r = {};
+    try { r = JSON.parse(xhr.responseText); } catch (_) {}
+    if (xhr.status !== 200) { message(r.detail || "Ошибка загрузки: " + xhr.status); return; }
+    if (r.saved.length) message(`Загружено: ${r.saved.length}. Индексация начнётся автоматически.`, "ok");
+    const exists = r.errors.filter((e) => e.includes("уже есть"));
+    const other = r.errors.filter((e) => !e.includes("уже есть"));
+    if (other.length) message(other.join("\n"));
+    if (exists.length && confirm(`Эти файлы уже есть в папке:\n${exists.map((e) => e.split(":")[0]).join("\n")}\n\nЗаменить их новыми версиями?`)) {
+      const names = new Set(exists.map((e) => e.split(":")[0]));
+      upload(list.filter((f) => names.has(f.name)), true);
+    }
+    loadFiles();
+  };
+  xhr.onerror = () => { $("upload-progress").classList.add("hidden"); message("Ошибка сети при загрузке"); };
+  xhr.send(form);
+}
+
+// ---------------- проверка ответов ----------------
+$("question").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("form").requestSubmit(); });
 $("form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const question = $("question").value.trim();
   if (!question) return;
   $("submit").disabled = true;
   const started = Date.now();
-  const timer = setInterval(() => {
-    $("status").textContent = `Ищу и формулирую ответ… ${Math.round((Date.now() - started) / 1000)} с`;
-  }, 500);
-  try {
-    const res = await fetch("/api/ask", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({question, collection: $("collection").value}),
-    });
-    if (!res.ok) throw new Error(`Ошибка сервера: ${res.status}`);
-    render(await res.json());
-  } catch (err) {
-    $("result").innerHTML = `<div class="card warn">${esc(err.message)}</div>`;
-  } finally {
-    clearInterval(timer);
-    $("submit").disabled = false;
-    $("status").textContent = "Ctrl+Enter — отправить";
-  }
+  const timer = setInterval(() => $("status").textContent = `Ищу и формулирую ответ… ${Math.round((Date.now() - started) / 1000)} с`, 500);
+  try { renderAnswer(await post("/api/ask", {question, collection: $("collection").value})); }
+  catch (err) { $("result").innerHTML = `<div class="card msg err">${esc(err.message)}</div>`; }
+  finally { clearInterval(timer); $("submit").disabled = false; $("status").textContent = "Ctrl+Enter — отправить"; }
 });
 
-function render(r) {
-  let html = `<div class="card answer">`;
-  if (!r.found) {
-    html += `<p>${esc(r.answer)}</p>`;
-  } else {
+function renderAnswer(r) {
+  let html = `<div class="card">`;
+  if (!r.found) html += `<p>${esc(r.answer)}</p>`;
+  else {
     if (r.intro) html += `<p>${esc(r.intro)}</p>`;
     html += `<ol class="claims">`;
     r.claims.forEach((c, i) => {
-      html += `<li>${esc(c.text)}<br>
-        <span class="cite" data-i="${i}">${esc(c.source.citation)}</span>
-        ${c.auto_added ? '<span class="auto">добавлено проверкой полноты</span>' : ""}
-        <div class="source-text" id="src-${i}">${esc(c.source.heading_path ? c.source.heading_path + "\n\n" : "")}${esc(c.source.text)}</div>
-      </li>`;
+      html += `<li>${esc(c.text)}<br><span class="cite" data-i="${i}">${esc(c.source.citation)}</span>
+        ${c.auto_added ? '<span class="badge b-warn">добавлено проверкой полноты</span>' : ""}
+        <div class="source-text" id="src-${i}">${esc(c.source.heading_path ? c.source.heading_path + "\n\n" : "")}${esc(c.source.text)}</div></li>`;
     });
     html += `</ol>`;
     if (r.note) html += `<p>${esc(r.note)}</p>`;
   }
-  (r.warnings || []).forEach((w) => html += `<div class="warn">${esc(w)}</div>`);
+  (r.warnings || []).forEach((w) => html += `<div class="msg err" style="background:var(--warn-bg);color:var(--warn)">${esc(w)}</div>`);
   const t = r.diagnostics.timings || {};
-  html += `<div class="meta">Время: ${t.total ?? "—"} с (поиск ${t.retrieval ?? "—"} с, модель ${t.llm ?? "—"} с) · фрагментов в контексте: ${r.diagnostics.context_fragments}</div>`;
-  html += `<details><summary>Что нашёл поиск</summary><ol>`;
+  html += `<div class="hint">Время: ${t.total ?? "—"} с (поиск ${t.retrieval ?? "—"} с, модель ${t.llm ?? "—"} с) · фрагментов в контексте: ${r.diagnostics.context_fragments}</div>`;
+  html += `<details><summary class="hint">Что нашёл поиск</summary><ol>`;
   r.diagnostics.search_results.forEach((s) => html += `<li class="hint">${esc(s.citation)} — ${esc(s.channels.join(", "))}</li>`);
   html += `</ol></details></div>`;
   $("result").innerHTML = html;
   document.querySelectorAll(".cite").forEach((el) => el.onclick = () => $("src-" + el.dataset.i).classList.toggle("open"));
 }
 
-async function loadDocs() {
-  const res = await fetch("/api/documents");
-  const docs = await res.json();
-  if (!docs.length) { $("docs").innerHTML = `<tr><td class="hint">Документов пока нет.</td></tr>`; return; }
-  $("docs").innerHTML = `<tr><th>Документ</th><th>Коллекция</th><th>Фрагментов</th><th>Обновлён</th></tr>` +
-    docs.map((d) => `<tr><td>${esc(d.title)}<br><span class="hint">${esc(d.filename)}</span></td>
-      <td>${esc(d.collection)}${d.document_type ? "<br><span class='hint'>" + esc(d.document_type) + "</span>" : ""}</td>
-      <td>${d.chunks}</td><td class="hint">${esc((d.indexed_at || "").slice(0, 16).replace("T", " "))}</td></tr>`).join("");
-}
+init();
 </script>
 </body>
 </html>

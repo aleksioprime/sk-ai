@@ -43,11 +43,13 @@ class Settings:
     # Где лежат файлы: <data_dir>/documents, <data_dir>/reports
     data_dir: Path = Path(os.environ.get("DATA_DIR", "/opt/school-ai/data"))
 
-    # Веб-интерфейс
+    # Веб-приложение School AI (страница «Документы» и API)
     web_host: str = os.environ.get("WEB_HOST", "127.0.0.1")
     web_port: int = _int("WEB_PORT", 8000)
-    web_user: str = os.environ.get("WEB_USER", "school")
-    web_password: str = os.environ.get("WEB_PASSWORD", "")
+
+    # Open WebUI: через него проверяется вход пользователей
+    open_webui_url: str = os.environ.get("OPEN_WEBUI_URL", "http://127.0.0.1:8080")
+    open_webui_public_port: int = _int("OPEN_WEBUI_PUBLIC_PORT", 8080)
 
     # Ключ для OpenAI-совместимого API (/v1), через который подключается Open WebUI
     api_key: str = os.environ.get("API_KEY", "")
