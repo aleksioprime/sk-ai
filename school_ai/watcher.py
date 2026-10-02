@@ -54,6 +54,7 @@ def _print(*args, end="\n", **_kwargs) -> None:
 
 def watch(interval: float = 5.0) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # не засорять журнал запросами к Ollama
     log.info("Слежу за %s (каждые %.0f с)", settings.data_dir, interval)
 
     # Полная проверка при старте

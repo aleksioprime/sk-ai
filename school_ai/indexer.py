@@ -32,7 +32,7 @@ from .structure import build_chunks, build_sections
 
 # Увеличивайте при изменении парсеров/разбиения — тогда все документы
 # переиндексируются при следующем запуске `school-ai index`.
-PARSER_VERSION = 2
+PARSER_VERSION = 4
 
 EMBED_BATCH = 16
 

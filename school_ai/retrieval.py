@@ -156,6 +156,8 @@ def search(query: str, limit: int = RESULT_LIMIT, collection: str | None = None,
                     JOIN document_chunks c ON c.section_id = s.id
                     JOIN documents d ON d.id = c.document_id
                     WHERE s.title IS NOT NULL
+                      -- заголовок, совпадающий с названием документа, ничего не уточняет
+                      AND position(lower(s.title) in lower(COALESCE(d.title, ''))) = 0
                       AND to_tsvector('russian', s.title) @@ to_tsquery('simple', %(or_q)s)
                       AND {_FILTER}
                     ORDER BY s.id, c.chunk_index

@@ -92,6 +92,28 @@ class _DecimalTracker:
             return True  # после новой главы нумерация может начаться заново
         return prev < n <= prev + 3
 
+    def missing_parents(self, label: str) -> list[str]:
+        """
+        «1.1» встретился, а пункта «1» в тексте нет (в PDF из Word номер заголовка
+        раздела часто теряется: «Общие положения» → «1.1. ...»).
+        Если номер правдоподобен при условии, что недостающие родители есть,
+        возвращает их номера (сверху вниз), иначе пустой список.
+        """
+        nums = tuple(int(x) for x in label.split("."))
+        if len(nums) < 2 or nums[-1] > 3:
+            return []
+        known = len(nums) - 1
+        while known > 0 and nums[:known] not in self.seen:
+            known -= 1
+        missing = [nums[:i] for i in range(known + 1, len(nums))]
+        # первый недостающий уровень должен быть «следующим» по порядку
+        first = missing[0]
+        prev = self.last_child.get(first[:-1])
+        ok = (first[-1] <= 3) if prev is None else (prev < first[-1] <= prev + 3)
+        if not ok or any(m[-1] > 3 for m in missing[1:]):
+            return []
+        return [".".join(map(str, m)) for m in missing]
+
     def accept(self, label: str) -> None:
         nums = tuple(int(x) for x in label.split("."))
         if not nums[:-1]:
@@ -104,11 +126,74 @@ class _DecimalTracker:
         self.last_child[nums[:-1]] = nums[-1]
 
 
+_HEADING_LIKE_RE = re.compile(r"^[A-ZА-ЯЁ«\"(].{1,118}$")
+
+
+def _take_heading(section: "Section | None") -> str | None:
+    """
+    Последний абзац раздела похож на заголовок («Общие положения»)?
+    Тогда забираем его — он станет названием раздела, у которого
+    в тексте потерялся номер.
+    """
+    if section is None or not section.paragraphs:
+        return None
+    text = section.paragraphs[-1][0]
+    if not _HEADING_LIKE_RE.match(text) or re.search(r"[.:;,!?]$", text):
+        return None
+    if len(section.paragraphs) == 1 and section.kind != "preamble":
+        return None  # не оставляем раздел пустым
+    section.paragraphs.pop()
+    return text
+
+
 def build_sections(parsed: ParsedDocument) -> list[Section]:
     sections: list[Section] = []
     stack: list[Section] = []
     preamble: Section | None = None
     tracker = _DecimalTracker()
+
+    def open_section(kind: str, label: str | None, text: str, page, heading_level=None) -> Section:
+        if kind == "numbered" and is_decimal_label(label):
+            tracker.accept(label)
+        elif kind in ("named", "heading"):
+            tracker.allow_restart = True
+
+        rank = rank_of(kind, label, heading_level)
+        while stack and stack[-1].rank >= rank:
+            stack.pop()
+        # Раздел «1.» после вводного заголовка со своим текстом («Связь политики
+        # с миссией школы» + абзацы) — не его подраздел, а самостоятельный раздел
+        if kind == "numbered" and "." not in label:
+            while stack and stack[-1].kind == "heading" and len(stack[-1].paragraphs) > 1:
+                stack.pop()
+        # 28.1 не может быть дочерним для 27.4 — снимаем «чужие» номера
+        if kind == "numbered":
+            while (
+                stack
+                and stack[-1].kind == "numbered"
+                and not label.startswith(stack[-1].label + ".")
+            ):
+                stack.pop()
+
+        parent = stack[-1] if stack else None
+        section = Section(
+            position=len(sections),
+            kind=kind,
+            label=label,
+            rank=rank,
+            parent=parent,
+            page=page,
+        )
+        if text:
+            section.paragraphs.append((text, page))
+        if kind in ("named", "heading"):
+            section.title = _cut(text, 300) if text else None
+
+        if parent:
+            parent.children.append(section)
+        sections.append(section)
+        stack.append(section)
+        return section
 
     for block in parsed.blocks:
         text = block.text.strip()
@@ -120,47 +205,29 @@ def build_sections(parsed: ParsedDocument) -> list[Section]:
         # Номер, набранный прямо в тексте абзаца
         if kind == "text":
             found_label, found_kind, rest = split_label(text)
-            if found_kind == "numbered" and not tracker.plausible(found_label):
-                found_kind, found_label, rest = "text", None, text
+            if found_kind == "numbered":
+                # «11 класса ...», «31 мая ...» — перенос строки, а не раздел:
+                # номер без точек считаем разделом, только если дальше заглавная буква
+                if "." not in found_label and not rest[:1].isupper():
+                    found_kind = "text"
+                elif not tracker.plausible(found_label):
+                    missing = tracker.missing_parents(found_label)
+                    if missing:
+                        # создаём потерянные разделы; название — из заголовка перед ними
+                        title = _take_heading(stack[-1] if stack else preamble)
+                        for i, parent_label in enumerate(missing):
+                            virtual = open_section("numbered", parent_label, "", block.page)
+                            if i == 0 and title:
+                                virtual.title = title
+                                virtual.paragraphs.append((title, block.page))
+                    else:
+                        found_kind = "text"
+            if found_kind == "text":
+                found_label, rest = None, text
             kind, label, text = found_kind, found_label, rest
 
         if kind in ("numbered", "named", "heading"):
-            if kind == "numbered" and is_decimal_label(label):
-                tracker.accept(label)
-            elif kind in ("named", "heading"):
-                tracker.allow_restart = True
-
-            rank = rank_of(kind, label, block.heading_level)
-
-            while stack and stack[-1].rank >= rank:
-                stack.pop()
-            # 28.1 не может быть дочерним для 27.4 — снимаем «чужие» номера
-            if kind == "numbered":
-                while (
-                    stack
-                    and stack[-1].kind == "numbered"
-                    and not label.startswith(stack[-1].label + ".")
-                ):
-                    stack.pop()
-
-            parent = stack[-1] if stack else None
-            section = Section(
-                position=len(sections),
-                kind=kind,
-                label=label,
-                rank=rank,
-                parent=parent,
-                page=block.page,
-            )
-            if text:
-                section.paragraphs.append((text, block.page))
-            if kind in ("named", "heading"):
-                section.title = _cut(text, 300) if text else None
-
-            if parent:
-                parent.children.append(section)
-            sections.append(section)
-            stack.append(section)
+            open_section(kind, label, text, block.page, block.heading_level)
             continue
 
         # Обычный абзац, элемент списка, таблица — продолжение текущего пункта
@@ -180,8 +247,9 @@ def build_sections(parsed: ParsedDocument) -> list[Section]:
         target.paragraphs.append((text, block.page))
 
     # Заголовок пронумерованного раздела: «28. Основания отклонения заявки.»
+    # (первая строка раздела с подпунктами, короткая и не обрывается на «:»)
     for s in sections:
-        if s.kind != "numbered" or not s.children or len(s.paragraphs) != 1:
+        if s.kind != "numbered" or not s.children or not s.paragraphs or s.title:
             continue
         first = s.paragraphs[0][0]
         if len(first) <= TITLE_MAX and not re.search(r"[:;,]\s*$", first):

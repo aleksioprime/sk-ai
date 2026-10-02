@@ -180,7 +180,7 @@ def cmd_eval(args) -> int:
     for n, case in enumerate(cases, start=1):
         started = time.monotonic()
         result = ask(case["question"], collection=case.get("collection", "documents"), save=False)
-        cited = {c["source"]["section"] for c in result["claims"]}
+        cited = {c["source"]["section"] or "без номера" for c in result["claims"]}
         expected = set(case.get("expected_sections", []))
         must_not_find = case.get("expect_not_found", False)
 
