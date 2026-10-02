@@ -12,7 +12,6 @@
 # настроенном — только обновляет код/документы и перезапускает сервисы.
 #
 # Параметры:
-#     --no-index     не запускать индексацию документов
 #     --no-models    не скачивать модели Ollama
 #     --reindex      переиндексировать все документы заново
 #
@@ -38,12 +37,11 @@ LAUNCHD=/Library/LaunchDaemons
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 cd /  # текущая папка администратора недоступна пользователю service
 
-DO_INDEX=1
 DO_MODELS=1
 REINDEX=""
 for arg in "$@"; do
     case "$arg" in
-        --no-index) DO_INDEX=0 ;;
+        --no-index) ;;  # оставлено для совместимости: индексирует служба ru.school-ai.indexer
         --no-models) DO_MODELS=0 ;;
         --reindex) REINDEX="--force" ;;
         *) echo "Неизвестный параметр: $arg"; exit 1 ;;
@@ -272,11 +270,15 @@ as_service "$ROOT/.venv/bin/school-ai" init-db
 ok "таблицы созданы/обновлены"
 
 # ---------------------------------------------------------------------------
-step "10. Веб-интерфейс"
+step "10. Страница «Документы», API и служба индексации"
 # ---------------------------------------------------------------------------
-touch "$ROOT/logs/web.log" "$ROOT/logs/web-error.log"
-chown "$SERVICE_USER":staff "$ROOT/logs/web.log" "$ROOT/logs/web-error.log"
+for log in web web-error indexer indexer-error; do
+    touch "$ROOT/logs/$log.log"
+    chown "$SERVICE_USER":staff "$ROOT/logs/$log.log"
+done
 install_daemon ru.school-ai.web restart
+# Служба индексации при запуске сама проверяет всю папку документов
+install_daemon ru.school-ai.indexer restart
 
 
 # ---------------------------------------------------------------------------
@@ -336,9 +338,9 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-if [[ $DO_INDEX -eq 1 ]]; then
-    step "12. Индексация документов"
-    as_service "$ROOT/.venv/bin/school-ai" index $REINDEX
+if [[ -n "$REINDEX" ]]; then
+    step "12. Полная переиндексация документов"
+    as_service "$ROOT/.venv/bin/school-ai" index --force
 fi
 
 # ---------------------------------------------------------------------------

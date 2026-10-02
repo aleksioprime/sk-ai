@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Загружает документы с этого компьютера на сервер и индексирует их.
+# Загружает документы с этого компьютера на сервер (индексирует их служба на сервере).
 #
 #     deploy/push-data.sh                 — добавить/обновить файлы из local/data
 #     deploy/push-data.sh --mirror        — сделать сервер ТОЧНОЙ копией local/data
@@ -8,7 +8,7 @@
 #
 # Главная копия документов — на сервере. Этот скрипт нужен, чтобы:
 #   * загрузить документы на новый сервер из резервной копии (local/data);
-#   * добавить файлы, пока нет веб-загрузки.
+#   * загрузить сразу много файлов (обычно удобнее страница «Документы»).
 # Положите файлы в local/data/documents/<папка>/ и запустите скрипт.
 #
 set -euo pipefail
@@ -30,6 +30,8 @@ fi
 echo "==> local/data → $SERVER:~/$REMOTE_SRC/upload"
 rsync -az --delete -e "ssh ${SSH_OPTS[*]}" --exclude .DS_Store local/data/ "$SERVER:$REMOTE_SRC/upload/"
 
-echo "==> Копирую в /opt/school-ai/data и индексирую (введите пароль администратора сервера)"
+echo "==> Копирую в /opt/school-ai/data (введите пароль администратора сервера)"
 ssh -t "${SSH_OPTS[@]}" "$SERVER" "sudo rsync -a $DELETE --exclude .DS_Store ~/$REMOTE_SRC/upload/ /opt/school-ai/data/ \
-    && sudo chown -R service:staff /opt/school-ai/data && school-ai index"
+    && sudo chown -R service:staff /opt/school-ai/data"
+echo "Готово. Служба индексации подхватит изменения за несколько секунд —"
+echo "статус виден на странице «Документы» (deploy/tunnel.sh → http://localhost:8000)."
